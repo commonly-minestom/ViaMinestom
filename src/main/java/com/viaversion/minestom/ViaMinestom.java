@@ -1,7 +1,7 @@
 package com.viaversion.minestom;
 
 import com.viaversion.minestom.addon.MinestomViaBackwards;
-import com.viaversion.minestom.addon.MinestomViaRewind;
+import com.viaversion.minestom.addon.ViaAddon;
 import com.viaversion.minestom.command.CommandAuthorizer;
 import com.viaversion.minestom.command.ViaVersionCommand;
 import com.viaversion.minestom.network.NetworkServer;
@@ -19,13 +19,15 @@ import java.net.SocketAddress;
 import java.net.UnixDomainSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.minestom.server.MinecraftServer;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Entry point that starts a Minestom server with ViaVersion, ViaBackwards and ViaRewind in front of it.
+ * Entry point that starts a Minestom server with ViaVersion and ViaBackwards in front of it.
  * <pre>{@code
  * MinecraftServer server = MinecraftServer.init();
  * // set up instances, listeners, ...
@@ -39,12 +41,14 @@ public final class ViaMinestom {
     private final AtomicBoolean stopped = new AtomicBoolean();
     private final Path dataDirectory;
     private final CommandAuthorizer commandAuthorizer;
+    private final List<ViaAddon> addons;
     private final Transport transport;
     private final NetworkServer networkServer;
 
     private ViaMinestom(final Builder builder) {
         this.dataDirectory = builder.dataDirectory;
         this.commandAuthorizer = builder.commandAuthorizer;
+        this.addons = List.copyOf(builder.addons);
         this.transport = builder.transport != null ? builder.transport : Transport.detect();
         this.networkServer = new NetworkServer(transport);
     }
@@ -117,8 +121,9 @@ public final class ViaMinestom {
         Via.init(manager);
         platform.getConf().reload();
 
-        new MinestomViaBackwards(dataDirectory.resolve("viabackwards").toFile()).install();
-        new MinestomViaRewind(dataDirectory.resolve("viarewind").toFile()).install();
+        for (final ViaAddon addon : addons) {
+            addon.install(dataDirectory);
+        }
         manager.init();
 
         MinecraftServer.getCommandManager().register(new ViaVersionCommand(commandHandler, commandAuthorizer));
@@ -141,6 +146,7 @@ public final class ViaMinestom {
     public static final class Builder {
         private Path dataDirectory = Path.of("via");
         private CommandAuthorizer commandAuthorizer = CommandAuthorizer.operators();
+        private final List<ViaAddon> addons = new ArrayList<>(List.of(new MinestomViaBackwards()));
         private @Nullable Transport transport;
 
         private Builder() {
@@ -159,6 +165,14 @@ public final class ViaMinestom {
          */
         public Builder commandAuthorizer(final CommandAuthorizer commandAuthorizer) {
             this.commandAuthorizer = Objects.requireNonNull(commandAuthorizer, "commandAuthorizer");
+            return this;
+        }
+
+        /**
+         * Loads another addon next to ViaBackwards, which is always there. Addons are installed in the order given.
+         */
+        public Builder addon(final ViaAddon addon) {
+            this.addons.add(Objects.requireNonNull(addon, "addon"));
             return this;
         }
 

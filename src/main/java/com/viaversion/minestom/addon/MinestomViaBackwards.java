@@ -11,25 +11,22 @@ import com.viaversion.viabackwards.protocol.v1_20_2to1_20.provider.AdvancementCr
 import com.viaversion.viaversion.api.Via;
 import com.viaversion.viaversion.api.ViaManager;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.logging.Logger;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
 import org.slf4j.LoggerFactory;
 
-public final class MinestomViaBackwards implements ViaBackwardsPlatform {
+public final class MinestomViaBackwards implements ViaBackwardsPlatform, ViaAddon {
     private final Logger logger = new Slf4jLoggerAdapter(LoggerFactory.getLogger("ViaBackwards"));
     private final EventNode<Event> eventNode = EventNode.all("viabackwards");
-    private final File dataFolder;
+    private File dataFolder;
 
-    public MinestomViaBackwards(final File dataFolder) {
-        this.dataFolder = dataFolder;
-    }
+    @Override
+    public void install(final Path dataDirectory) {
+        this.dataFolder = dataDirectory.resolve("viabackwards").toFile();
 
-    /**
-     * Hooks the addon into the Via lifecycle, has to be called before the manager is initialised.
-     */
-    public void install() {
         final ViaManager manager = Via.getManager();
         manager.addEnableListener(() -> init(new File(dataFolder, "config.yml")));
         manager.addPostEnableListener(this::enable);

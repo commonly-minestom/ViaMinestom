@@ -1,8 +1,9 @@
 # ViaMinestom
 
-Runs [ViaVersion](https://github.com/ViaVersion/ViaVersion), [ViaBackwards](https://github.com/ViaVersion/ViaBackwards)
-and [ViaRewind](https://github.com/ViaVersion/ViaRewind) inside a [Minestom](https://github.com/Minestom/Minestom)
-server, so that clients from 1.7 up to versions newer than the server can join it directly, without a proxy in between.
+Runs [ViaVersion](https://github.com/ViaVersion/ViaVersion) and [ViaBackwards](https://github.com/ViaVersion/ViaBackwards)
+inside a [Minestom](https://github.com/Minestom/Minestom) server, so that clients from 1.9 up to versions newer than
+the server can join it directly, without a proxy in between. [ViaRewind](https://github.com/ViaVersion/ViaRewind) adds
+1.7 and 1.8 on top through its own Minestom module.
 
 ## Usage
 
@@ -36,6 +37,15 @@ permission check of the `/viaversion` command and the socket implementation can 
 ViaMinestom.builder()
     .dataDirectory(Path.of("config", "via"))
     .commandAuthorizer((sender, permission) -> permissions.has(sender, permission))
+    .build()
+    .start(server, "0.0.0.0", 25565);
+```
+
+Further addons are passed to the builder as well. With the Minestom module of ViaRewind on the classpath:
+
+```java
+ViaMinestom.builder()
+    .addon(new ViaMinestomAddon())
     .build()
     .start(server, "0.0.0.0", 25565);
 ```

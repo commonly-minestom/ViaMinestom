@@ -5,7 +5,7 @@ plugins {
 
 group = "com.viaversion"
 version = property("projectVersion") as String
-description = "Runs ViaVersion, ViaBackwards and ViaRewind inside a Minestom server."
+description = "Runs ViaVersion and ViaBackwards inside a Minestom server."
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
@@ -16,7 +16,6 @@ dependencies {
     api(libs.minestom)
     api(libs.viaversion)
     api(libs.viabackwards)
-    api(libs.viarewind)
     api(libs.bundles.netty)
 
     implementation(libs.jctools)

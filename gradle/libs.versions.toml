@@ -6,7 +6,6 @@ minestom = "2026.09.12-26.2"
 
 viaversion = "5.12.0"
 viabackwards = "5.12.0"
-viarewind = "4.2.0"
 
 netty = "4.2.18.Final"
 jctools = "4.0.7"
@@ -20,7 +19,6 @@ minestom = { group = "net.minestom", name = "minestom", version.ref = "minestom"
 
 viaversion = { group = "com.viaversion", name = "viaversion-common", version.ref = "viaversion" }
 viabackwards = { group = "com.viaversion", name = "viabackwards-common", version.ref = "viabackwards" }
-viarewind = { group = "com.viaversion", name = "viarewind-common", version.ref = "viarewind" }
 
 nettyTransport = { group = "io.netty", name = "netty-transport", version.ref = "netty" }
 nettyHandler = { group = "io.netty", name = "netty-handler", version.ref = "netty" }
