@@ -8,11 +8,7 @@ import net.minestom.server.event.player.PlayerStartDiggingEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 
-/**
- * Before 1.16 fire has no hitbox, clients put it out by hitting the block it burns on.
- */
 public final class FireExtinguishListener extends ProtocolEventListener<PlayerStartDiggingEvent> {
-
     public FireExtinguishListener(final EventNode<Event> node) {
         super(node, PlayerStartDiggingEvent.class, Protocol1_16To1_15_2.class);
     }

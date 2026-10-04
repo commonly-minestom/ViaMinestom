@@ -31,12 +31,13 @@ ViaMinestom.create().start(server, "0.0.0.0", 25565);
 ```
 
 The configuration files of the three projects are created under `via/` on the first start. The directory, the
-permission check of the `/viaversion` command and the socket implementation can be changed through the builder:
+permission check of the `/viaversion` command and the network settings can be changed through the builder:
 
 ```java
 ViaMinestom.builder()
     .dataDirectory(Path.of("config", "via"))
     .commandAuthorizer((sender, permission) -> permissions.has(sender, permission))
+    .network(NetworkSettings.defaults().withReadTimeout(Duration.ofSeconds(60)))
     .build()
     .start(server, "0.0.0.0", 25565);
 ```
@@ -63,25 +64,40 @@ if (player.getPlayerConnection() instanceof ViaPlayerConnection connection) {
 
 Libraries that need to see the packets of a connection, an anticheat for instance, register a
 `PacketInterceptorFactory` with `PacketInterceptors`. Their interceptor is shown every packet twice, in the version of
-the client and in the version of the server, and may change or drop it at either stage. Injecting packets at a stage is
-done through `ViaPlayerConnection#write` and `ViaPlayerConnection#read`.
+the client and in the version of the server, and may change or drop it at either stage.
+
+Every buffer starts with the packet id, followed by the payload. An incoming packet is returned to pass it on, as the
+very same instance unless it is replaced, or dropped by returning null. An outgoing packet continues once it is written
+to the sink, which may happen at most once; not writing it drops it. All calls happen on the thread that owns the
+connection, so an interceptor needs no synchronisation of its own.
+
+Injecting packets at a stage is done through `ViaPlayerConnection#write` and `ViaPlayerConnection#read`, from any
+thread. The overloads taking a `PacketStage` enter the pipeline right past the interceptors of that stage.
 
 Code that relies on the Via API while the server is still being set up can call `ViaMinestom#load()` ahead of `start`.
 
 ## How it works
 
-Minestom reads and writes its sockets itself, while Via translates packets inside a Netty pipeline. ViaMinestom
-therefore accepts the clients on a Netty server of its own and hands every channel to Minestom as a
-`PlayerSocketConnection`, which keeps authentication, proxy forwarding, compression and the packet events of Minestom
-working as usual:
+Minestom reads and writes its sockets itself, while ViaVersion translates packets through the channel API of its own
+engine. ViaMinestom therefore accepts the clients on a socket server of its own, built on the JDK alone, and hands every
+connection to Minestom as a `PlayerSocketConnection`, which keeps authentication, proxy forwarding, compression and the
+packet events of Minestom working as usual:
 
 ```
 socket <-> cipher <-> framing <-> compression <-> [interceptors] <-> Via <-> [interceptors] <-> ViaPlayerConnection <-> Minestom
 ```
 
-Packets are still parsed, dispatched and serialized on virtual threads, one pair per connection. Clients on the
-version of the server skip the translation entirely and receive the packets Minestom has framed ahead of time as they
-are.
+Each connection is driven by three virtual threads. A reader blocks on the socket, strips the optional PROXY protocol
+header, decrypts the stream and splits it into frames. An actor owns the whole protocol state and processes frames,
+outgoing packets and the tasks of ViaVersion strictly in the order they arrive, batching the bytes it produces. A
+writer blocks on the socket while sending those batches. The channel ViaVersion is given is an in-memory adapter whose
+event loop is the actor of the connection, so the translation engine runs single-threaded exactly as it does on every
+other platform, without an event loop group, a socket or a native transport of its own. The `io.netty` artifacts on
+the classpath are the buffer and channel API that ViaVersion is written against; nothing else of Netty is used.
+
+Clients on the version of the server skip the translation entirely and receive the packets Minestom has framed ahead
+of time as they are. Connections that stay silent for longer than `NetworkSettings#readTimeout` are closed, and a
+connection whose shutdown does not complete within `NetworkSettings#closeTimeout` is dropped.
 
 The socket server built into Minestom is bound to a private socket file and stays unused, which means that
 `MinecraftServer.getServer()` does not report the public address. Use `ViaMinestom#address()` for that.

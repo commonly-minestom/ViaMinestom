@@ -6,9 +6,6 @@ import net.minestom.server.entity.Player;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
 
-/**
- * A Minestom event listener that only acts on players whose connection goes through a given protocol.
- */
 public abstract class ProtocolEventListener<E extends Event> extends ViaListener {
     private final EventNode<Event> node;
     private final Class<E> eventType;

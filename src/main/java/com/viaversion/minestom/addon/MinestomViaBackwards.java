@@ -40,7 +40,6 @@ public final class MinestomViaBackwards implements ViaBackwardsPlatform, ViaAddo
         new FireExtinguishListener(eventNode).register();
         new LecternInteractListener(eventNode).register();
         new DurabilitySyncListener(eventNode).register();
-        // Run after the listeners of the server so that their cancellations are visible
         eventNode.setPriority(Integer.MAX_VALUE);
         MinecraftServer.getGlobalEventHandler().addChild(eventNode);
 

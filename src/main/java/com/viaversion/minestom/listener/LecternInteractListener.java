@@ -18,9 +18,6 @@ import net.minestom.server.item.component.WritableBookContent;
 import net.minestom.server.item.component.WrittenBookContent;
 import org.jetbrains.annotations.Nullable;
 
-/**
- * Clients before 1.14 cannot display the lectern screen, so the book lying on it is opened for them directly.
- */
 public final class LecternInteractListener extends ProtocolEventListener<PlayerBlockInteractEvent> {
     private static final String BOOK_TAG = "Book";
 

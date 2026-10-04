@@ -5,9 +5,6 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-/**
- * Routes the {@link Logger} instances required by the Via APIs to SLF4J.
- */
 public final class Slf4jLoggerAdapter extends Logger {
     private final org.slf4j.Logger delegate;
 

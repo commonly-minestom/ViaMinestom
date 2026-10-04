@@ -1,22 +1,13 @@
 package com.viaversion.minestom.platform;
 
-import com.viaversion.minestom.network.Transport;
-import com.viaversion.minestom.network.pipeline.HandlerNames;
+import com.viaversion.minestom.network.bridge.HandlerNames;
 import com.viaversion.viaversion.api.platform.ViaInjector;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import com.viaversion.viaversion.libs.gson.JsonObject;
 import net.minestom.server.MinecraftServer;
 
-/**
- * The pipeline is owned by this platform, so the Via handlers are installed while the channel
- * is initialised and there is nothing left to inject afterwards.
- */
 public final class MinestomViaInjector implements ViaInjector {
-    private final Transport transport;
-
-    public MinestomViaInjector(final Transport transport) {
-        this.transport = transport;
-    }
+    private static final String TRANSPORT = "nio-virtual-threads";
 
     @Override
     public void inject() {
@@ -44,7 +35,7 @@ public final class MinestomViaInjector implements ViaInjector {
     @Override
     public JsonObject getDump() {
         final JsonObject dump = new JsonObject();
-        dump.addProperty("transport", transport.name());
+        dump.addProperty("transport", TRANSPORT);
         return dump;
     }
 }

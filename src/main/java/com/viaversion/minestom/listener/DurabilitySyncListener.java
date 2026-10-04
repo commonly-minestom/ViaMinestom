@@ -9,11 +9,7 @@ import net.minestom.server.event.EventNode;
 import net.minestom.server.event.player.PlayerBlockBreakEvent;
 import net.minestom.server.item.ItemStack;
 
-/**
- * Clients up to 1.10 predict the durability loss of a block break, which has to be reverted when the break is refused.
- */
 public final class DurabilitySyncListener extends ProtocolEventListener<PlayerBlockBreakEvent> {
-
     public DurabilitySyncListener(final EventNode<Event> node) {
         super(node, PlayerBlockBreakEvent.class, Protocol1_11To1_10.class);
     }

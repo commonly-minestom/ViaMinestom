@@ -16,19 +16,12 @@ dependencies {
     api(libs.minestom)
     api(libs.viaversion)
     api(libs.viabackwards)
-    api(libs.bundles.netty)
+    api(libs.bundles.viaversionApi)
 
     implementation(libs.jctools)
-    implementation(libs.guava)
     implementation(libs.slf4j)
+    runtimeOnly(libs.guava)
     compileOnly(libs.annotations)
-
-    for (classifier in listOf("linux-x86_64", "linux-aarch_64")) {
-        runtimeOnly(variantOf(libs.nettyNativeEpoll) { classifier(classifier) })
-    }
-    for (classifier in listOf("osx-x86_64", "osx-aarch_64")) {
-        runtimeOnly(variantOf(libs.nettyNativeKqueue) { classifier(classifier) })
-    }
 }
 
 tasks {

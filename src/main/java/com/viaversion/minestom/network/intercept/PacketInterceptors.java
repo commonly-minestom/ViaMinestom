@@ -4,10 +4,6 @@ import com.viaversion.minestom.network.connection.ViaPlayerConnection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
- * Registry of the interceptors installed on new connections, in registration order.
- * Connections that are already open are not affected by changes.
- */
 public final class PacketInterceptors {
     private static final PacketInterceptor[] NONE = new PacketInterceptor[0];
     private static final List<PacketInterceptorFactory> FACTORIES = new CopyOnWriteArrayList<>();

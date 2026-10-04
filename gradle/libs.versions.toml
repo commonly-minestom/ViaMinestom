@@ -20,21 +20,15 @@ minestom = { group = "net.minestom", name = "minestom", version.ref = "minestom"
 viaversion = { group = "com.viaversion", name = "viaversion-common", version.ref = "viaversion" }
 viabackwards = { group = "com.viaversion", name = "viabackwards-common", version.ref = "viabackwards" }
 
+nettyBuffer = { group = "io.netty", name = "netty-buffer", version.ref = "netty" }
 nettyTransport = { group = "io.netty", name = "netty-transport", version.ref = "netty" }
-nettyHandler = { group = "io.netty", name = "netty-handler", version.ref = "netty" }
 nettyCodec = { group = "io.netty", name = "netty-codec-base", version.ref = "netty" }
-nettyHaproxy = { group = "io.netty", name = "netty-codec-haproxy", version.ref = "netty" }
-nettyEpoll = { group = "io.netty", name = "netty-transport-classes-epoll", version.ref = "netty" }
-nettyKqueue = { group = "io.netty", name = "netty-transport-classes-kqueue", version.ref = "netty" }
-nettyNativeEpoll = { group = "io.netty", name = "netty-transport-native-epoll", version.ref = "netty" }
-nettyNativeKqueue = { group = "io.netty", name = "netty-transport-native-kqueue", version.ref = "netty" }
 
 jctools = { group = "org.jctools", name = "jctools-core-jdk11", version.ref = "jctools" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 slf4j = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
 annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
 
-
 [bundles]
 
-netty = ["nettyTransport", "nettyHandler", "nettyCodec", "nettyHaproxy", "nettyEpoll", "nettyKqueue"]
+viaversionApi = ["nettyBuffer", "nettyTransport", "nettyCodec"]

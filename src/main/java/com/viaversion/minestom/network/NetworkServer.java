@@ -1,72 +1,124 @@
 package com.viaversion.minestom.network;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.MultiThreadIoEventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
+import com.viaversion.minestom.network.connection.ConnectionRegistry;
+import com.viaversion.minestom.network.connection.IdleConnectionMonitor;
+import com.viaversion.minestom.network.connection.ViaPlayerConnection;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
+import java.nio.channels.Channel;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.time.Duration;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import org.jetbrains.annotations.Nullable;
 
-/**
- * Accepts the client connections in place of the socket server built into Minestom.
- */
 public final class NetworkServer {
-    private final Transport transport;
+    private static final Duration ACCEPT_FAILURE_BACKOFF = Duration.ofSeconds(1);
 
-    private @Nullable EventLoopGroup acceptorGroup;
-    private @Nullable EventLoopGroup workerGroup;
-    private @Nullable Channel serverChannel;
+    private final NetworkSettings settings;
+    private final ConnectionRegistry registry = new ConnectionRegistry();
+    private final IdleConnectionMonitor monitor;
+    private @Nullable ServerSocketChannel serverSocket;
 
-    public NetworkServer(final Transport transport) {
-        this.transport = transport;
+    public NetworkServer(final NetworkSettings settings) {
+        this.settings = settings;
+        this.monitor = new IdleConnectionMonitor(registry, settings.readTimeout(), settings.closeTimeout());
     }
 
     public synchronized void bind(final InetSocketAddress address) {
-        if (serverChannel != null) {
-            throw new IllegalStateException("Already bound to " + serverChannel.localAddress());
+        if (serverSocket != null) {
+            throw new IllegalStateException("Already bound to " + address());
         }
-
-        final EventLoopGroup acceptorGroup = new MultiThreadIoEventLoopGroup(1, new DefaultThreadFactory("Via-Acceptor", true), transport.newIoHandlerFactory());
-        final EventLoopGroup workerGroup = new MultiThreadIoEventLoopGroup(new DefaultThreadFactory("Via-Worker", true), transport.newIoHandlerFactory());
-        this.acceptorGroup = acceptorGroup;
-        this.workerGroup = workerGroup;
+        final ServerSocketChannel socket;
         try {
-            this.serverChannel = new ServerBootstrap()
-                .group(acceptorGroup, workerGroup)
-                .channel(transport.serverChannelType())
-                .option(ChannelOption.SO_REUSEADDR, true)
-                .childOption(ChannelOption.TCP_NODELAY, ServerFlag.SOCKET_NO_DELAY)
-                .childOption(ChannelOption.SO_SNDBUF, ServerFlag.SOCKET_SEND_BUFFER_SIZE)
-                .childOption(ChannelOption.SO_RCVBUF, ServerFlag.SOCKET_RECEIVE_BUFFER_SIZE)
-                .childHandler(new ClientChannelInitializer())
-                .bind(address)
-                .syncUninterruptibly()
-                .channel();
-        } catch (final RuntimeException e) {
-            close();
-            throw e;
+            socket = ServerSocketChannel.open();
+            socket.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+            socket.bind(address, settings.backlog());
+        } catch (final IOException e) {
+            throw new UncheckedIOException("Failed to bind " + address, e);
         }
+        this.serverSocket = socket;
+        monitor.start();
+        Thread.ofVirtual().name("Via-Acceptor").start(() -> accept(socket));
     }
 
     public synchronized @Nullable InetSocketAddress address() {
-        return serverChannel != null ? (InetSocketAddress) serverChannel.localAddress() : null;
+        final ServerSocketChannel socket = serverSocket;
+        if (socket == null) {
+            return null;
+        }
+        try {
+            return (InetSocketAddress) socket.getLocalAddress();
+        } catch (final IOException _) {
+            return null;
+        }
+    }
+
+    public int connectionCount() {
+        return registry.size();
     }
 
     public synchronized void close() {
-        if (serverChannel != null) {
-            serverChannel.close().syncUninterruptibly();
-            serverChannel = null;
+        final ServerSocketChannel socket = serverSocket;
+        if (socket == null) {
+            return;
         }
-        if (acceptorGroup != null) {
-            acceptorGroup.shutdownGracefully();
-            acceptorGroup = null;
+        serverSocket = null;
+        closeQuietly(socket);
+        monitor.stop();
+        registry.closeAll(settings.closeTimeout());
+    }
+
+    private void accept(final ServerSocketChannel socket) {
+        while (socket.isOpen()) {
+            final SocketChannel client;
+            try {
+                client = socket.accept();
+            } catch (final ClosedChannelException _) {
+                return;
+            } catch (final IOException e) {
+                MinecraftServer.getExceptionManager().handleException(e);
+                pause();
+                continue;
+            }
+            open(client);
         }
-        if (workerGroup != null) {
-            workerGroup.shutdownGracefully();
-            workerGroup = null;
+    }
+
+    private void open(final SocketChannel client) {
+        try {
+            configure(client);
+            final ViaPlayerConnection connection = ViaPlayerConnection.open(client, registry::remove);
+            registry.add(connection);
+            connection.start();
+        } catch (final IOException | RuntimeException e) {
+            closeQuietly(client);
+            MinecraftServer.getExceptionManager().handleException(e);
+        }
+    }
+
+    private static void configure(final SocketChannel client) throws IOException {
+        client.setOption(StandardSocketOptions.TCP_NODELAY, ServerFlag.SOCKET_NO_DELAY);
+        client.setOption(StandardSocketOptions.SO_SNDBUF, ServerFlag.SOCKET_SEND_BUFFER_SIZE);
+        client.setOption(StandardSocketOptions.SO_RCVBUF, ServerFlag.SOCKET_RECEIVE_BUFFER_SIZE);
+    }
+
+    private static void pause() {
+        try {
+            Thread.sleep(ACCEPT_FAILURE_BACKOFF);
+        } catch (final InterruptedException _) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static void closeQuietly(final Channel channel) {
+        try {
+            channel.close();
+        } catch (final IOException _) {
         }
     }
 }

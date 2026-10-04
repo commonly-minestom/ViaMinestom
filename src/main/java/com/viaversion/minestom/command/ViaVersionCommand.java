@@ -31,7 +31,6 @@ public final class ViaVersionCommand extends Command {
     }
 
     private void suggest(final CommandSender sender, final CommandContext context, final Suggestion suggestion) {
-        // Minestom appends a NUL placeholder when the input ends with a space
         final String[] tokens = context.getInput().replace("\0", "").split(" ", -1);
         final String[] arguments = Arrays.copyOfRange(tokens, 1, tokens.length);
         for (final String completion : handler.onTabComplete(wrap(sender), arguments)) {
