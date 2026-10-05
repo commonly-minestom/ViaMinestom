@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(gradleApi())
     implementation(libs.asmCommons)
+    compileOnly(libs.annotations)
 }
 
 tasks {

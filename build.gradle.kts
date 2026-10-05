@@ -1,3 +1,4 @@
+import com.viaversion.minestom.gradle.linkage.VerifyLinkage
 import com.viaversion.minestom.gradle.relocation.RelocateTransform
 
 plugins {
@@ -48,6 +49,13 @@ dependencies {
     compileOnly(libs.annotations)
 }
 
+val verifyLinkage = tasks.register<VerifyLinkage>("verifyLinkage") {
+    libraries.from(bundledClasspath)
+    classes.from(sourceSets.main.map { it.output.classesDirs })
+    namespace.set(transportPackage)
+    report.set(layout.buildDirectory.file("reports/linkage.txt"))
+}
+
 tasks {
     withType<JavaCompile>().configureEach {
         options.encoding = Charsets.UTF_8.name()
@@ -55,10 +63,15 @@ tasks {
     }
 
     jar {
+        dependsOn(verifyLinkage)
         manifest.attributes("Multi-Release" to true)
         from(bundledClasspath.map { classpath -> classpath.map { zipTree(it) } }) {
             exclude("META-INF/MANIFEST.MF")
         }
+    }
+
+    check {
+        dependsOn(verifyLinkage)
     }
 }
 
