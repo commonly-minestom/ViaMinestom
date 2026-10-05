@@ -13,13 +13,14 @@ Install the library into the local Maven repository with `./gradlew publishToMav
 repositories {
     mavenLocal()
     mavenCentral()
-    maven("https://repo.viaversion.com")
 }
 
 dependencies {
     implementation("com.viaversion:viaminestom:1.0.0-SNAPSHOT")
 }
 ```
+
+ViaVersion and ViaBackwards are part of the jar, so neither of them has to be declared as a dependency.
 
 Start the server through `ViaMinestom` instead of `MinecraftServer#start`:
 
@@ -50,6 +51,9 @@ ViaMinestom.builder()
     .build()
     .start(server, "0.0.0.0", 25565);
 ```
+
+An addon built against the upstream ViaVersion artifacts has to go through the relocation described under
+[How it works](#how-it-works) before it is put on the classpath, and must not bring a ViaVersion of its own along.
 
 The version a player is really on is available from the regular Via API (`Via.getAPI().getPlayerProtocolVersion(uuid)`)
 or from the connection itself:
@@ -90,10 +94,28 @@ socket <-> cipher <-> framing <-> compression <-> [interceptors] <-> Via <-> [in
 Each connection is driven by three virtual threads. A reader blocks on the socket, strips the optional PROXY protocol
 header, decrypts the stream and splits it into frames. An actor owns the whole protocol state and processes frames,
 outgoing packets and the tasks of ViaVersion strictly in the order they arrive, batching the bytes it produces. A
-writer blocks on the socket while sending those batches. The channel ViaVersion is given is an in-memory adapter whose
+writer blocks on the socket while sending those batches. The channel ViaVersion is given is an in-memory one whose
 event loop is the actor of the connection, so the translation engine runs single-threaded exactly as it does on every
-other platform, without an event loop group, a socket or a native transport of its own. The `io.netty` artifacts on
-the classpath are the buffer and channel API that ViaVersion is written against; nothing else of Netty is used.
+other platform, without an event loop group, a socket or a native transport of its own.
+
+ViaVersion and ViaBackwards are compiled against the buffer and channel API of Netty. ViaMinestom does not depend on
+Netty: `com.viaversion.minestom.transport` implements the part of that API the two libraries use, with heap buffers
+and the in-memory channel, and the build rewrites every reference to `io.netty` inside them to that package before
+bundling them into the jar. Before the jar is assembled, the `verifyLinkage` task resolves each of those references
+against the transport classes and checks what the two libraries inherit from them, so an update of either library that
+relies on something not implemented yet fails the build instead of a running server. Only lookups made through
+reflection are beyond its reach.
+
+Addons compiled against Netty need the same treatment. With the Shadow plugin that is a single rule:
+
+```kotlin
+tasks.shadowJar {
+    relocate("io.netty", "com.viaversion.minestom.transport")
+}
+```
+
+Unlike the two bundled libraries, an addon relocated this way is not verified, so anything it needs and the transport
+classes lack only shows once it is used.
 
 Clients on the version of the server skip the translation entirely and receive the packets Minestom has framed ahead
 of time as they are. Connections that stay silent for longer than `NetworkSettings#readTimeout` are closed, and a
