@@ -13,6 +13,8 @@ guava = "33.7.2-jre"
 slf4j = "2.0.20"
 annotations = "26.1.0"
 
+asm = "9.10.1"
+
 [libraries]
 
 minestom = { group = "net.minestom", name = "minestom", version.ref = "minestom" }
@@ -28,6 +30,8 @@ jctools = { group = "org.jctools", name = "jctools-core-jdk11", version.ref = "j
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 slf4j = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
 annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
+
+asmCommons = { group = "org.ow2.asm", name = "asm-commons", version.ref = "asm" }
 
 [bundles]
 
