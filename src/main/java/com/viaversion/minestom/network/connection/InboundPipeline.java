@@ -17,8 +17,7 @@ final class InboundPipeline {
     private final PacketDispatcher dispatcher;
     private final Registries registries;
 
-    InboundPipeline(final ViaPlayerConnection connection, final InterceptorChain interceptors, final ViaTranslator translator,
-                    final WireCodec codec, final PacketDispatcher dispatcher, final Registries registries) {
+    InboundPipeline(final ViaPlayerConnection connection, final InterceptorChain interceptors, final ViaTranslator translator, final WireCodec codec, final PacketDispatcher dispatcher, final Registries registries) {
         this.connection = connection;
         this.interceptors = interceptors;
         this.translator = translator;
