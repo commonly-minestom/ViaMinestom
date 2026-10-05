@@ -7,7 +7,6 @@ minestom = "2026.09.12-26.2"
 viaversion = "5.12.0"
 viabackwards = "5.12.0"
 
-netty = "4.2.18.Final"
 jctools = "4.0.7"
 guava = "33.7.2-jre"
 slf4j = "2.0.20"
@@ -22,17 +21,9 @@ minestom = { group = "net.minestom", name = "minestom", version.ref = "minestom"
 viaversion = { group = "com.viaversion", name = "viaversion-common", version.ref = "viaversion" }
 viabackwards = { group = "com.viaversion", name = "viabackwards-common", version.ref = "viabackwards" }
 
-nettyBuffer = { group = "io.netty", name = "netty-buffer", version.ref = "netty" }
-nettyTransport = { group = "io.netty", name = "netty-transport", version.ref = "netty" }
-nettyCodec = { group = "io.netty", name = "netty-codec-base", version.ref = "netty" }
-
 jctools = { group = "org.jctools", name = "jctools-core-jdk11", version.ref = "jctools" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 slf4j = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
 annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
 
 asmCommons = { group = "org.ow2.asm", name = "asm-commons", version.ref = "asm" }
-
-[bundles]
-
-viaversionApi = ["nettyBuffer", "nettyTransport", "nettyCodec"]

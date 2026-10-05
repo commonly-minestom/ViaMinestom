@@ -1,10 +1,10 @@
 package com.viaversion.minestom.network.bridge;
 
+import com.viaversion.minestom.transport.buffer.ByteBuf;
+import com.viaversion.minestom.transport.channel.ChannelHandlerContext;
+import com.viaversion.minestom.transport.channel.ChannelInboundHandlerAdapter;
+import com.viaversion.minestom.transport.util.ReferenceCountUtil;
 import com.viaversion.viaversion.exception.CancelCodecException;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.util.ReferenceCountUtil;
 import java.nio.channels.ClosedChannelException;
 import net.minestom.server.MinecraftServer;
 
@@ -16,7 +16,7 @@ final class PipelineTailHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void channelRead(final ChannelHandlerContext ctx, final Object message) {
+    public void channelRead(final ChannelHandlerContext context, final Object message) {
         if (!(message instanceof ByteBuf packet)) {
             ReferenceCountUtil.release(message);
             return;
@@ -29,7 +29,7 @@ final class PipelineTailHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
+    public void exceptionCaught(final ChannelHandlerContext context, final Throwable cause) {
         if (cause instanceof CancelCodecException || cause instanceof ClosedChannelException) {
             return;
         }

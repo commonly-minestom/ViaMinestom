@@ -1,8 +1,8 @@
 package com.viaversion.minestom.network.bridge;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import com.viaversion.minestom.transport.buffer.ByteBuf;
+import com.viaversion.minestom.transport.channel.ChannelHandlerContext;
+import com.viaversion.minestom.transport.channel.ChannelInboundHandlerAdapter;
 
 final class ViaDecoderHandler extends ChannelInboundHandlerAdapter {
     private final ViaTranslator translator;
@@ -12,16 +12,16 @@ final class ViaDecoderHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void channelRead(final ChannelHandlerContext ctx, final Object message) {
+    public void channelRead(final ChannelHandlerContext context, final Object message) {
         if (!(message instanceof ByteBuf packet)) {
-            ctx.fireChannelRead(message);
+            context.fireChannelRead(message);
             return;
         }
         boolean forwarded = false;
         try {
             if (translator.serverbound(packet)) {
                 forwarded = true;
-                ctx.fireChannelRead(packet);
+                context.fireChannelRead(packet);
             }
         } finally {
             if (!forwarded) {

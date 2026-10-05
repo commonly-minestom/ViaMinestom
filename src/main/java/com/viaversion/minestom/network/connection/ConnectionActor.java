@@ -1,13 +1,13 @@
 package com.viaversion.minestom.network.connection;
 
-import com.viaversion.minestom.network.bridge.BridgeExecutor;
+import com.viaversion.minestom.transport.channel.EventLoop;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.network.packet.server.SendablePacket;
 import org.jetbrains.annotations.Nullable;
 
-final class ConnectionActor implements Runnable, BridgeExecutor {
+final class ConnectionActor implements Runnable, EventLoop {
     private final Mailbox<Object> mailbox = new Mailbox<>(this::orphaned);
     private final CountDownLatch terminated = new CountDownLatch(1);
     private volatile @Nullable Thread thread;
@@ -21,13 +21,9 @@ final class ConnectionActor implements Runnable, BridgeExecutor {
         mailbox.post(message);
     }
 
-    boolean inThread() {
-        return Thread.currentThread() == thread;
-    }
-
     @Override
-    public boolean inThread(final Thread candidate) {
-        return candidate == thread;
+    public boolean inEventLoop() {
+        return Thread.currentThread() == thread;
     }
 
     @Override
@@ -35,23 +31,15 @@ final class ConnectionActor implements Runnable, BridgeExecutor {
         mailbox.post(task);
     }
 
-    @Override
-    public void shutdown() {
+    void shutdown() {
         mailbox.close();
     }
 
-    @Override
-    public boolean isShutdown() {
+    boolean isShutdown() {
         return mailbox.isClosed();
     }
 
-    @Override
-    public boolean isTerminated() {
-        return mailbox.isTerminated();
-    }
-
-    @Override
-    public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
+    boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
         return terminated.await(timeout, unit);
     }
 
@@ -60,7 +48,6 @@ final class ConnectionActor implements Runnable, BridgeExecutor {
         thread = Thread.currentThread();
         mailbox.bind(Thread.currentThread());
         try {
-            connection.actorStarted();
             while (true) {
                 drain();
                 connection.outbound().flush();

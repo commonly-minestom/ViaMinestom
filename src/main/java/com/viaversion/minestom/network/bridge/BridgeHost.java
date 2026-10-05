@@ -1,6 +1,6 @@
 package com.viaversion.minestom.network.bridge;
 
-import io.netty.buffer.ByteBuf;
+import com.viaversion.minestom.transport.buffer.ByteBuf;
 import net.minestom.server.entity.Player;
 import org.jetbrains.annotations.Nullable;
 

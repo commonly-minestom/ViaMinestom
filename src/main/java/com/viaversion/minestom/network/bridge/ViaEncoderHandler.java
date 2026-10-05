@@ -1,9 +1,9 @@
 package com.viaversion.minestom.network.bridge;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.ChannelPromise;
+import com.viaversion.minestom.transport.buffer.ByteBuf;
+import com.viaversion.minestom.transport.channel.ChannelHandlerContext;
+import com.viaversion.minestom.transport.channel.ChannelOutboundHandlerAdapter;
+import com.viaversion.minestom.transport.channel.ChannelPromise;
 
 final class ViaEncoderHandler extends ChannelOutboundHandlerAdapter {
     private final ViaTranslator translator;
@@ -13,9 +13,9 @@ final class ViaEncoderHandler extends ChannelOutboundHandlerAdapter {
     }
 
     @Override
-    public void write(final ChannelHandlerContext ctx, final Object message, final ChannelPromise promise) {
+    public void write(final ChannelHandlerContext context, final Object message, final ChannelPromise promise) {
         if (!(message instanceof ByteBuf packet)) {
-            ctx.write(message, promise);
+            context.write(message, promise);
             return;
         }
         final boolean forward;
@@ -27,7 +27,7 @@ final class ViaEncoderHandler extends ChannelOutboundHandlerAdapter {
             return;
         }
         if (forward) {
-            ctx.write(packet, promise);
+            context.write(packet, promise);
         } else {
             packet.release();
             promise.trySuccess();

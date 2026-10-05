@@ -1,12 +1,12 @@
 package com.viaversion.minestom.network.bridge;
 
+import com.viaversion.minestom.transport.buffer.ByteBuf;
+import com.viaversion.minestom.transport.buffer.ByteBufAllocator;
+import com.viaversion.minestom.transport.handler.codec.CodecException;
 import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.exception.CancelCodecException;
 import com.viaversion.viaversion.exception.CancelDecoderException;
 import com.viaversion.viaversion.exception.CancelEncoderException;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.handler.codec.CodecException;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.registry.Registries;
 import org.jetbrains.annotations.Nullable;

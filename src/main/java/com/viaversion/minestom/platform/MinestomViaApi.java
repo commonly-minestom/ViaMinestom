@@ -1,8 +1,8 @@
 package com.viaversion.minestom.platform;
 
+import com.viaversion.minestom.transport.buffer.ByteBuf;
 import com.viaversion.viaversion.ViaAPIBase;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
-import io.netty.buffer.ByteBuf;
 import net.minestom.server.entity.Player;
 
 public final class MinestomViaApi extends ViaAPIBase<Player> {

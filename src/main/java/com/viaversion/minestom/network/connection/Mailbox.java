@@ -67,10 +67,6 @@ final class Mailbox<T> {
         drainOrphans();
     }
 
-    boolean isTerminated() {
-        return terminated;
-    }
-
     private void drainOrphans() {
         orphanLock.lock();
         try {

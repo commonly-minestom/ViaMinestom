@@ -1,16 +1,15 @@
 package com.viaversion.minestom.network.connection;
 
 import com.viaversion.minestom.network.bridge.BridgeChannel;
-import com.viaversion.minestom.network.bridge.BridgeEventLoop;
 import com.viaversion.minestom.network.bridge.BridgeHost;
 import com.viaversion.minestom.network.bridge.ByteBufs;
 import com.viaversion.minestom.network.codec.WireCodec;
 import com.viaversion.minestom.network.intercept.PacketInterceptor;
 import com.viaversion.minestom.network.intercept.PacketInterceptors;
 import com.viaversion.minestom.network.intercept.PacketStage;
+import com.viaversion.minestom.transport.buffer.ByteBuf;
 import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
-import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
@@ -46,7 +45,6 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
     private final SocketReader reader;
     private final SocketWriter writer;
     private final Consumer<ViaPlayerConnection> onTerminated;
-    private final BridgeEventLoop loop;
     private final BridgeChannel bridge;
     private final InterceptorChain interceptors;
     private final WireCodec codec = new WireCodec();
@@ -72,8 +70,7 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
         this.reader = reader;
         this.writer = writer;
         this.onTerminated = onTerminated;
-        this.loop = new BridgeEventLoop(actor);
-        this.bridge = new BridgeChannel(new Host(), localAddress, getRemoteAddress(), registries);
+        this.bridge = new BridgeChannel(new Host(), actor, getRemoteAddress(), registries);
         this.interceptors = new InterceptorChain(PacketInterceptors.create(this));
         final PacketDispatcher dispatcher = new PacketDispatcher(this, MinecraftServer.getServer().packetParser());
         this.inbound = new InboundPipeline(this, interceptors, bridge.translator(), codec, dispatcher, registries);
@@ -118,7 +115,7 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
     }
 
     public void execute(final Runnable task) {
-        if (actor.inThread()) {
+        if (actor.inEventLoop()) {
             task.run();
         } else if (!actor.isShutdown()) {
             actor.execute(task);
@@ -250,10 +247,6 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
         }
     }
 
-    void actorStarted() {
-        bridge.register(loop);
-    }
-
     void actorStopping() {
         disconnect();
         interceptors.close();
@@ -261,7 +254,6 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
     }
 
     void actorStopped() {
-        loop.terminated();
         writer.shutdown();
         onTerminated.accept(this);
     }
