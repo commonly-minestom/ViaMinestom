@@ -1,5 +1,6 @@
-package com.viaversion.minestom.listener;
+package com.viaversion.minestom.listener.impl;
 
+import com.viaversion.minestom.listener.ProtocolEventListener;
 import com.viaversion.viabackwards.protocol.v1_11to1_10.Protocol1_11To1_10;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.entity.GameMode;

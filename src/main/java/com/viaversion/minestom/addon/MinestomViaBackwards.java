@@ -1,9 +1,9 @@
 package com.viaversion.minestom.addon;
 
-import com.viaversion.minestom.listener.DurabilitySyncListener;
-import com.viaversion.minestom.listener.FireExtinguishListener;
-import com.viaversion.minestom.listener.LecternInteractListener;
-import com.viaversion.minestom.listener.SpearAttackListener;
+import com.viaversion.minestom.listener.impl.DurabilitySyncListener;
+import com.viaversion.minestom.listener.impl.FireExtinguishListener;
+import com.viaversion.minestom.listener.impl.LecternInteractListener;
+import com.viaversion.minestom.listener.impl.SpearAttackListener;
 import com.viaversion.minestom.provider.MinestomAdvancementCriteriaProvider;
 import com.viaversion.minestom.util.Slf4jLoggerAdapter;
 import com.viaversion.viabackwards.api.ViaBackwardsPlatform;

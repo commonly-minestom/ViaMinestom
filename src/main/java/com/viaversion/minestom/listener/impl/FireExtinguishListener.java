@@ -1,5 +1,6 @@
-package com.viaversion.minestom.listener;
+package com.viaversion.minestom.listener.impl;
 
+import com.viaversion.minestom.listener.ProtocolEventListener;
 import com.viaversion.viabackwards.protocol.v1_16to1_15_2.Protocol1_16To1_15_2;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.event.Event;

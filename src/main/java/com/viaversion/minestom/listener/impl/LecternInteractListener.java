@@ -1,5 +1,6 @@
-package com.viaversion.minestom.listener;
+package com.viaversion.minestom.listener.impl;
 
+import com.viaversion.minestom.listener.ProtocolEventListener;
 import com.viaversion.viabackwards.protocol.v1_14to1_13_2.Protocol1_14To1_13_2;
 import java.util.ArrayList;
 import java.util.List;
