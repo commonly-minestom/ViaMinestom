@@ -121,11 +121,12 @@ Clients on the version of the server skip the translation entirely and receive t
 of time as they are. Connections that stay silent for longer than `NetworkSettings#readTimeout` are closed, and a
 connection whose shutdown does not complete within `NetworkSettings#closeTimeout` is dropped.
 
-A connection also has `NetworkSettings#loginTimeout` to reach the play state, which stops clients that trickle bytes
-to stay in the handshake. A client that falls more than `NetworkSettings#maxPendingWriteBytes` behind on what it is
+A connection also has `NetworkSettings#loginTimeout` to get through the handshake and login, which stops clients that
+trickle bytes to stay in them; the configuration phase is not subject to it, so large resource packs are not cut off. A client that falls more than `NetworkSettings#maxPendingWriteBytes` behind on what it is
 sent is disconnected, and reading from a client is paused while more than `NetworkSettings#maxPendingReadBytes` of its
 packets are waiting to be processed. `NetworkSettings#maxConnections` and `NetworkSettings#maxConnectionsPerAddress`
-cap how many sockets are accepted; both are unlimited by default.
+cap how many sockets are accepted; both are unlimited by default. The per-address limit counts the address of the TCP
+peer, so behind a proxy every player shares the proxy's address and it should be left unset.
 
 The socket server built into Minestom is bound to a private socket file and stays unused, which means that
 `MinecraftServer.getServer()` does not report the public address. Use `ViaMinestom#address()` for that.
