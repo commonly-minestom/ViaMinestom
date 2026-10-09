@@ -25,6 +25,7 @@ import java.util.function.Consumer;
 import javax.crypto.SecretKey;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.Player;
+import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.PacketParser;
 import net.minestom.server.network.packet.client.ClientPacket;
@@ -58,13 +59,14 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
     private final AtomicBoolean closeRequested = new AtomicBoolean();
     private final AtomicInteger liveWorkers = new AtomicInteger(2);
     private final CountDownLatch terminated = new CountDownLatch(1);
+    private final long connectedAt = System.nanoTime();
     private volatile long closeRequestedAt;
     private volatile long lastReadAt = System.nanoTime();
 
     private ViaPlayerConnection(final SocketChannel socket, final BufferPool pool, final NetworkSettings settings, final Consumer<ViaPlayerConnection> onTerminated) throws IOException {
         final Registries registries = MinecraftServer.getRegistries();
         final ConnectionActor actor = new ConnectionActor();
-        final SocketReader reader = new SocketReader(socket, registries);
+        final SocketReader reader = new SocketReader(socket, registries, settings.maxPendingReadBytes());
         final SocketWriter writer = new SocketWriter(socket, pool, settings.maxPendingWriteBytes());
         super(socket, socket.getRemoteAddress(), READERS.newThread(reader), WRITERS.newThread(writer));
         this.socket = socket;
@@ -224,14 +226,24 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
         }
     }
 
-    void enforceDeadlines(final long now, final long readTimeoutNanos, final long closeTimeoutNanos) {
+    boolean isClosing() {
+        return closeRequested.get();
+    }
+
+    void frameProcessed(final InboundFrame frame) {
+        reader.release(frame.bytes().length);
+    }
+
+    void enforceDeadlines(final long now, final Deadlines deadlines) {
         if (closeRequested.get()) {
-            if (now - closeRequestedAt > closeTimeoutNanos) {
+            if (now - closeRequestedAt > deadlines.closeNanos()) {
                 closeSocket();
             }
             return;
         }
-        if (now - lastReadAt > readTimeoutNanos) {
+        if (now - lastReadAt > deadlines.readNanos()) {
+            requestClose();
+        } else if (getClientState() != ConnectionState.PLAY && now - connectedAt > deadlines.loginNanos()) {
             requestClose();
         }
     }

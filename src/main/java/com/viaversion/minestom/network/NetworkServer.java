@@ -5,6 +5,7 @@ import com.viaversion.minestom.network.connection.IdleConnectionMonitor;
 import com.viaversion.minestom.network.connection.ViaPlayerConnection;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.channels.Channel;
@@ -12,6 +13,9 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import org.jetbrains.annotations.Nullable;
@@ -22,11 +26,12 @@ public final class NetworkServer {
     private final NetworkSettings settings;
     private final ConnectionRegistry registry = new ConnectionRegistry();
     private final IdleConnectionMonitor monitor;
+    private final Map<InetAddress, Integer> connectionsPerAddress = new HashMap<>();
     private @Nullable ServerSocketChannel serverSocket;
 
     public NetworkServer(final NetworkSettings settings) {
         this.settings = settings;
-        this.monitor = new IdleConnectionMonitor(registry, settings.readTimeout(), settings.closeTimeout());
+        this.monitor = new IdleConnectionMonitor(registry, settings);
     }
 
     public synchronized void bind(final InetSocketAddress address) {
@@ -90,10 +95,23 @@ public final class NetworkServer {
     }
 
     private void open(final SocketChannel client) {
+        InetAddress admitted = null;
+        final AtomicBoolean released = new AtomicBoolean();
         ViaPlayerConnection connection = null;
         try {
+            final InetAddress address = ((InetSocketAddress) client.getRemoteAddress()).getAddress();
+            if (!admit(address)) {
+                closeQuietly(client);
+                return;
+            }
+            admitted = address;
             configure(client);
-            connection = ViaPlayerConnection.open(client, settings, registry::remove);
+            connection = ViaPlayerConnection.open(client, settings, terminated -> {
+                registry.remove(terminated);
+                if (released.compareAndSet(false, true)) {
+                    release(address);
+                }
+            });
             registry.add(connection);
             connection.start();
         } catch (final IOException | RuntimeException e) {
@@ -101,8 +119,31 @@ public final class NetworkServer {
                 registry.remove(connection);
                 connection.disconnect();
             }
+            if (admitted != null && released.compareAndSet(false, true)) {
+                release(admitted);
+            }
             closeQuietly(client);
             MinecraftServer.getExceptionManager().handleException(e);
+        }
+    }
+
+    private boolean admit(final InetAddress address) {
+        if (registry.size() >= settings.maxConnections()) {
+            return false;
+        }
+        synchronized (connectionsPerAddress) {
+            final int current = connectionsPerAddress.getOrDefault(address, 0);
+            if (current >= settings.maxConnectionsPerAddress()) {
+                return false;
+            }
+            connectionsPerAddress.put(address, current + 1);
+            return true;
+        }
+    }
+
+    private void release(final InetAddress address) {
+        synchronized (connectionsPerAddress) {
+            connectionsPerAddress.computeIfPresent(address, (_, count) -> count <= 1 ? null : count - 1);
         }
     }
 

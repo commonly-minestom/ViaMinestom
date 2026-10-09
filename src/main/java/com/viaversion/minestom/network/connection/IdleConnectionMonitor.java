@@ -1,5 +1,6 @@
 package com.viaversion.minestom.network.connection;
 
+import com.viaversion.minestom.network.NetworkSettings;
 import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -11,14 +12,12 @@ public final class IdleConnectionMonitor {
     private static final Duration SWEEP_INTERVAL = Duration.ofSeconds(1);
 
     private final ConnectionRegistry registry;
-    private final long readTimeoutNanos;
-    private final long closeTimeoutNanos;
+    private final Deadlines deadlines;
     private @Nullable ScheduledExecutorService scheduler;
 
-    public IdleConnectionMonitor(final ConnectionRegistry registry, final Duration readTimeout, final Duration closeTimeout) {
+    public IdleConnectionMonitor(final ConnectionRegistry registry, final NetworkSettings settings) {
         this.registry = registry;
-        this.readTimeoutNanos = readTimeout.toNanos();
-        this.closeTimeoutNanos = closeTimeout.toNanos();
+        this.deadlines = Deadlines.of(settings);
     }
 
     public synchronized void start() {
@@ -41,7 +40,7 @@ public final class IdleConnectionMonitor {
     private void sweep() {
         final long now = System.nanoTime();
         try {
-            registry.forEach(connection -> connection.enforceDeadlines(now, readTimeoutNanos, closeTimeoutNanos));
+            registry.forEach(connection -> connection.enforceDeadlines(now, deadlines));
         } catch (final RuntimeException e) {
             MinecraftServer.getExceptionManager().handleException(e);
         }

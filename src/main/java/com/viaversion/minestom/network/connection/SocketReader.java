@@ -5,6 +5,8 @@ import com.viaversion.minestom.network.codec.FrameSplitter;
 import com.viaversion.minestom.network.codec.ProxyProtocol;
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import javax.crypto.Cipher;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
@@ -14,14 +16,20 @@ import net.minestom.server.registry.Registries;
 import org.jetbrains.annotations.Nullable;
 
 final class SocketReader implements Runnable {
+    private static final long CREDIT_POLL_MILLIS = 100;
+
     private final SocketChannel socket;
+    private final Semaphore credit;
+    private final int creditLimit;
     private final NetworkBuffer buffer;
     private volatile @Nullable Cipher decrypt;
     private boolean proxyHeaderPending = ServerFlag.PROXY_PROTOCOL;
     private ViaPlayerConnection connection;
 
-    SocketReader(final SocketChannel socket, final Registries registries) {
+    SocketReader(final SocketChannel socket, final Registries registries, final long maxPendingBytes) {
         this.socket = socket;
+        this.creditLimit = (int) Math.min(maxPendingBytes, Integer.MAX_VALUE);
+        this.credit = new Semaphore(creditLimit);
         this.buffer = NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, registries);
     }
 
@@ -97,7 +105,34 @@ final class SocketReader implements Runnable {
         }
     }
 
+    void release(final int frameLength) {
+        credit.release(weight(frameLength));
+    }
+
+    private int weight(final int frameLength) {
+        return Math.min(frameLength, creditLimit);
+    }
+
+    private boolean acquireCredit(final int frameLength) {
+        final int weight = weight(frameLength);
+        try {
+            while (!credit.tryAcquire(weight, CREDIT_POLL_MILLIS, TimeUnit.MILLISECONDS)) {
+                if (connection.isClosing()) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (final InterruptedException _) {
+            Thread.currentThread().interrupt();
+            connection.requestClose();
+            return false;
+        }
+    }
+
     private void frame(final NetworkBuffer source, final long index, final int length) {
+        if (!acquireCredit(length)) {
+            return;
+        }
         final byte[] bytes = new byte[length];
         source.copyTo(index, bytes, 0, length);
         connection.frame(new InboundFrame(bytes));

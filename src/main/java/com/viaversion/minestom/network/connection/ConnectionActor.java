@@ -87,7 +87,13 @@ final class ConnectionActor implements Runnable, EventLoop {
     private void dispatch(final Object message) {
         switch (message) {
             case SendablePacket packet -> connection.outbound().write(packet);
-            case InboundFrame frame -> connection.inbound().accept(frame);
+            case InboundFrame frame -> {
+                try {
+                    connection.inbound().accept(frame);
+                } finally {
+                    connection.frameProcessed(frame);
+                }
+            }
             case Runnable task -> run(task);
             default -> throw new IllegalArgumentException("Unsupported message type " + message.getClass().getName());
         }
