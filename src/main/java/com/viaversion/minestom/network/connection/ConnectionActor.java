@@ -6,6 +6,8 @@ import net.minestom.server.network.packet.server.SendablePacket;
 import org.jetbrains.annotations.Nullable;
 
 final class ConnectionActor implements Runnable, EventLoop {
+    private static final int MESSAGES_PER_FLUSH = 256;
+
     private final Mailbox<Object> mailbox = new Mailbox<>(_ -> { });
     private volatile @Nullable Thread thread;
     private ViaPlayerConnection connection;
@@ -70,7 +72,7 @@ final class ConnectionActor implements Runnable, EventLoop {
 
     private void drain() {
         Object message;
-        while ((message = mailbox.poll()) != null) {
+        for (int processed = 0; processed < MESSAGES_PER_FLUSH && (message = mailbox.poll()) != null; processed++) {
             dispatch(message);
         }
     }

@@ -21,13 +21,15 @@ final class SocketReader implements Runnable {
     private final SocketChannel socket;
     private final Semaphore credit;
     private final int creditLimit;
-    private final NetworkBuffer buffer;
+    private final Registries registries;
+    private NetworkBuffer buffer;
     private volatile @Nullable Cipher decrypt;
     private boolean proxyHeaderPending = ServerFlag.PROXY_PROTOCOL;
     private ViaPlayerConnection connection;
 
     SocketReader(final SocketChannel socket, final Registries registries, final long maxPendingBytes) {
         this.socket = socket;
+        this.registries = registries;
         this.creditLimit = (int) Math.min(maxPendingBytes, Integer.MAX_VALUE);
         this.credit = new Semaphore(creditLimit);
         this.buffer = NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, registries);
@@ -102,6 +104,8 @@ final class SocketReader implements Runnable {
         buffer.compact();
         if (required > buffer.capacity()) {
             buffer.resize(required);
+        } else if (buffer.readableBytes() == 0 && buffer.capacity() > ServerFlag.POOLED_BUFFER_SIZE) {
+            buffer = NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, registries);
         }
     }
 
