@@ -235,10 +235,11 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
         }
     }
 
-    private static boolean beforeConfiguration(final ConnectionState state) {
+    private static long allowedUntilPlay(final ConnectionState state, final Deadlines deadlines) {
         return switch (state) {
-            case HANDSHAKE, STATUS, LOGIN -> true;
-            case CONFIGURATION, PLAY -> false;
+            case HANDSHAKE, STATUS, LOGIN -> deadlines.loginNanos();
+            case CONFIGURATION -> deadlines.configurationNanos();
+            case PLAY -> Long.MAX_VALUE;
         };
     }
 
@@ -259,7 +260,7 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
         }
         if (now - lastReadAt > deadlines.readNanos()) {
             requestClose();
-        } else if (beforeConfiguration(getClientState()) && now - connectedAt > deadlines.loginNanos()) {
+        } else if (now - connectedAt > allowedUntilPlay(getClientState(), deadlines)) {
             requestClose();
         }
     }

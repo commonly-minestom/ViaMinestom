@@ -7,6 +7,7 @@ public record NetworkSettings(
     Duration readTimeout,
     Duration closeTimeout,
     Duration loginTimeout,
+    Duration configurationTimeout,
     int backlog,
     long maxPendingWriteBytes,
     long maxPendingReadBytes,
@@ -15,7 +16,7 @@ public record NetworkSettings(
 ) {
     private static final long MEBIBYTE = 1024L * 1024;
     private static final NetworkSettings DEFAULTS = new NetworkSettings(
-        Duration.ofSeconds(30), Duration.ofSeconds(10), Duration.ofSeconds(60), 128,
+        Duration.ofSeconds(30), Duration.ofSeconds(10), Duration.ofSeconds(60), Duration.ofMinutes(5), 128,
         8 * MEBIBYTE, 8 * MEBIBYTE, Integer.MAX_VALUE, Integer.MAX_VALUE
     );
 
@@ -23,6 +24,7 @@ public record NetworkSettings(
         requirePositive(readTimeout, "readTimeout");
         requirePositive(closeTimeout, "closeTimeout");
         requirePositive(loginTimeout, "loginTimeout");
+        requirePositive(configurationTimeout, "configurationTimeout");
         if (backlog < 0) {
             throw new IllegalArgumentException("backlog must not be negative");
         }
@@ -33,7 +35,7 @@ public record NetworkSettings(
     }
 
     public NetworkSettings(final Duration readTimeout, final Duration closeTimeout, final int backlog) {
-        this(readTimeout, closeTimeout, DEFAULTS.loginTimeout, backlog, DEFAULTS.maxPendingWriteBytes,
+        this(readTimeout, closeTimeout, DEFAULTS.loginTimeout, DEFAULTS.configurationTimeout, backlog, DEFAULTS.maxPendingWriteBytes,
             DEFAULTS.maxPendingReadBytes, DEFAULTS.maxConnections, DEFAULTS.maxConnectionsPerAddress);
     }
 
@@ -42,35 +44,39 @@ public record NetworkSettings(
     }
 
     public NetworkSettings withReadTimeout(final Duration readTimeout) {
-        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
     }
 
     public NetworkSettings withCloseTimeout(final Duration closeTimeout) {
-        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
     }
 
     public NetworkSettings withLoginTimeout(final Duration loginTimeout) {
-        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+    }
+
+    public NetworkSettings withConfigurationTimeout(final Duration configurationTimeout) {
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
     }
 
     public NetworkSettings withBacklog(final int backlog) {
-        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
     }
 
     public NetworkSettings withMaxPendingWriteBytes(final long maxPendingWriteBytes) {
-        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
     }
 
     public NetworkSettings withMaxPendingReadBytes(final long maxPendingReadBytes) {
-        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
     }
 
     public NetworkSettings withMaxConnections(final int maxConnections) {
-        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
     }
 
     public NetworkSettings withMaxConnectionsPerAddress(final int maxConnectionsPerAddress) {
-        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
+        return new NetworkSettings(readTimeout, closeTimeout, loginTimeout, configurationTimeout, backlog, maxPendingWriteBytes, maxPendingReadBytes, maxConnections, maxConnectionsPerAddress);
     }
 
     private static void requirePositive(final Duration duration, final String name) {

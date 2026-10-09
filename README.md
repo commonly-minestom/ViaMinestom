@@ -122,7 +122,8 @@ of time as they are. Connections that stay silent for longer than `NetworkSettin
 connection whose shutdown does not complete within `NetworkSettings#closeTimeout` is dropped.
 
 A connection also has `NetworkSettings#loginTimeout` to get through the handshake and login, which stops clients that
-trickle bytes to stay in them; the configuration phase is not subject to it, so large resource packs are not cut off. A client that falls more than `NetworkSettings#maxPendingWriteBytes` behind on what it is
+trickle bytes to stay in them, and `NetworkSettings#configurationTimeout` to reach the play state; the latter is longer
+so that large resource packs are not cut off. A client that falls more than `NetworkSettings#maxPendingWriteBytes` behind on what it is
 sent is disconnected, and reading from a client is paused while more than `NetworkSettings#maxPendingReadBytes` of its
 packets are waiting to be processed. `NetworkSettings#maxConnections` and `NetworkSettings#maxConnectionsPerAddress`
 cap how many sockets are accepted; both are unlimited by default. The per-address limit counts the address of the TCP
