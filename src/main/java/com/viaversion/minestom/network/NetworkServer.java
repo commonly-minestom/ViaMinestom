@@ -90,12 +90,17 @@ public final class NetworkServer {
     }
 
     private void open(final SocketChannel client) {
+        ViaPlayerConnection connection = null;
         try {
             configure(client);
-            final ViaPlayerConnection connection = ViaPlayerConnection.open(client, registry::remove);
+            connection = ViaPlayerConnection.open(client, settings, registry::remove);
             registry.add(connection);
             connection.start();
         } catch (final IOException | RuntimeException e) {
+            if (connection != null) {
+                registry.remove(connection);
+                connection.disconnect();
+            }
             closeQuietly(client);
             MinecraftServer.getExceptionManager().handleException(e);
         }

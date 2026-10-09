@@ -1,5 +1,6 @@
 package com.viaversion.minestom.network.connection;
 
+import com.viaversion.minestom.network.NetworkSettings;
 import com.viaversion.minestom.network.bridge.BridgeChannel;
 import com.viaversion.minestom.network.bridge.BridgeHost;
 import com.viaversion.minestom.network.bridge.ByteBufs;
@@ -15,9 +16,11 @@ import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import javax.crypto.SecretKey;
 import net.minestom.server.MinecraftServer;
@@ -53,14 +56,16 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
     private final AtomicBoolean encrypted = new AtomicBoolean();
     private final AtomicBoolean compressionRequested = new AtomicBoolean();
     private final AtomicBoolean closeRequested = new AtomicBoolean();
+    private final AtomicInteger liveWorkers = new AtomicInteger(2);
+    private final CountDownLatch terminated = new CountDownLatch(1);
     private volatile long closeRequestedAt;
     private volatile long lastReadAt = System.nanoTime();
 
-    private ViaPlayerConnection(final SocketChannel socket, final BufferPool pool, final Consumer<ViaPlayerConnection> onTerminated) throws IOException {
+    private ViaPlayerConnection(final SocketChannel socket, final BufferPool pool, final NetworkSettings settings, final Consumer<ViaPlayerConnection> onTerminated) throws IOException {
         final Registries registries = MinecraftServer.getRegistries();
         final ConnectionActor actor = new ConnectionActor();
         final SocketReader reader = new SocketReader(socket, registries);
-        final SocketWriter writer = new SocketWriter(socket, pool);
+        final SocketWriter writer = new SocketWriter(socket, pool, settings.maxPendingWriteBytes());
         super(socket, socket.getRemoteAddress(), READERS.newThread(reader), WRITERS.newThread(writer));
         this.socket = socket;
         this.localAddress = socket.getLocalAddress();
@@ -80,8 +85,8 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
         writer.attach(this);
     }
 
-    public static ViaPlayerConnection open(final SocketChannel socket, final Consumer<ViaPlayerConnection> onTerminated) throws IOException {
-        return new ViaPlayerConnection(socket, BufferPool.minestom(), onTerminated);
+    public static ViaPlayerConnection open(final SocketChannel socket, final NetworkSettings settings, final Consumer<ViaPlayerConnection> onTerminated) throws IOException {
+        return new ViaPlayerConnection(socket, BufferPool.minestom(), settings, onTerminated);
     }
 
     public static @Nullable Player player(final UserConnection userConnection) {
@@ -233,7 +238,7 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
 
     boolean awaitTermination(final Duration timeout) {
         try {
-            return actor.awaitTermination(timeout.toNanos(), TimeUnit.NANOSECONDS);
+            return terminated.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (final InterruptedException _) {
             Thread.currentThread().interrupt();
             return false;
@@ -255,7 +260,18 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
 
     void actorStopped() {
         writer.shutdown();
-        onTerminated.accept(this);
+        workerStopped();
+    }
+
+    void writerStopped() {
+        workerStopped();
+    }
+
+    private void workerStopped() {
+        if (liveWorkers.decrementAndGet() == 0) {
+            terminated.countDown();
+            onTerminated.accept(this);
+        }
     }
 
     private final class Host implements BridgeHost {

@@ -3,10 +3,7 @@ package com.viaversion.minestom.network.connection;
 import com.viaversion.minestom.network.codec.CorruptedFrameException;
 import com.viaversion.minestom.network.codec.FrameSplitter;
 import com.viaversion.minestom.network.codec.ProxyProtocol;
-import java.io.EOFException;
 import java.io.IOException;
-import java.net.SocketException;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
 import javax.crypto.Cipher;
 import net.minestom.server.MinecraftServer;
@@ -17,8 +14,6 @@ import net.minestom.server.registry.Registries;
 import org.jetbrains.annotations.Nullable;
 
 final class SocketReader implements Runnable {
-    private static final String CONNECTION_RESET = "Connection reset";
-
     private final SocketChannel socket;
     private final NetworkBuffer buffer;
     private volatile @Nullable Cipher decrypt;
@@ -44,9 +39,8 @@ final class SocketReader implements Runnable {
             while (true) {
                 read();
             }
-        } catch (final ClosedChannelException | EOFException _) {
         } catch (final IOException e) {
-            if (!(e instanceof SocketException && CONNECTION_RESET.equals(e.getMessage()))) {
+            if (!PeerDisconnects.isExpected(e)) {
                 MinecraftServer.getExceptionManager().handleException(e);
             }
         } catch (final Throwable t) {
