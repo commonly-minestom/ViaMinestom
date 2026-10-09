@@ -8,16 +8,20 @@ import org.jetbrains.annotations.Nullable;
 final class ConnectionActor implements Runnable, EventLoop {
     private static final int MESSAGES_PER_FLUSH = 256;
 
-    private final Mailbox<Object> mailbox = new Mailbox<>(_ -> { });
+    private final Mailbox<ActorMessage> mailbox = new Mailbox<>(_ -> { });
     private volatile @Nullable Thread thread;
-    private ViaPlayerConnection connection;
+    private final ViaPlayerConnection connection;
 
-    void attach(final ViaPlayerConnection connection) {
+    ConnectionActor(final ViaPlayerConnection connection) {
         this.connection = connection;
     }
 
-    void post(final Object message) {
-        mailbox.post(message);
+    void post(final SendablePacket packet) {
+        mailbox.post(new ActorMessage.OutboundPacket(packet));
+    }
+
+    void post(final InboundFrame frame) {
+        mailbox.post(frame);
     }
 
     @Override
@@ -27,7 +31,7 @@ final class ConnectionActor implements Runnable, EventLoop {
 
     @Override
     public void execute(final Runnable task) {
-        mailbox.post(task);
+        mailbox.post(new ActorMessage.Task(task));
     }
 
     void shutdown() {
@@ -71,24 +75,24 @@ final class ConnectionActor implements Runnable, EventLoop {
     }
 
     private void drain() {
-        Object message;
+        ActorMessage message;
         for (int processed = 0; processed < MESSAGES_PER_FLUSH && (message = mailbox.poll()) != null; processed++) {
             dispatch(message);
         }
     }
 
     private void drainTasks() {
-        Object message;
+        ActorMessage message;
         while ((message = mailbox.poll()) != null) {
-            if (message instanceof Runnable task) {
+            if (message instanceof ActorMessage.Task(final Runnable task)) {
                 run(task);
             }
         }
     }
 
-    private void dispatch(final Object message) {
+    private void dispatch(final ActorMessage message) {
         switch (message) {
-            case SendablePacket packet -> connection.outbound().write(packet);
+            case ActorMessage.OutboundPacket(final SendablePacket packet) -> connection.outbound().write(packet);
             case InboundFrame frame -> {
                 try {
                     connection.inbound().accept(frame);
@@ -96,8 +100,7 @@ final class ConnectionActor implements Runnable, EventLoop {
                     connection.frameProcessed(frame);
                 }
             }
-            case Runnable task -> run(task);
-            default -> throw new IllegalArgumentException("Unsupported message type " + message.getClass().getName());
+            case ActorMessage.Task(final Runnable task) -> run(task);
         }
     }
 

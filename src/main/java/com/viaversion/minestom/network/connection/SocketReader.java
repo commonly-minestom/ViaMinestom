@@ -16,28 +16,25 @@ import net.minestom.server.registry.Registries;
 import org.jetbrains.annotations.Nullable;
 
 final class SocketReader implements Runnable {
+    private final SocketChannel socket;
     private static final long CREDIT_POLL_MILLIS = 100;
     private static final FrameSplitter.FrameSink MEASURE = (_, _, _) -> { };
 
-    private final SocketChannel socket;
+    private final Registries registries;
     private final Semaphore credit;
     private final int creditLimit;
-    private final Registries registries;
     private NetworkBuffer buffer;
     private volatile @Nullable Cipher decrypt;
     private boolean proxyHeaderPending = ServerFlag.PROXY_PROTOCOL;
-    private ViaPlayerConnection connection;
+    private final ViaPlayerConnection connection;
 
-    SocketReader(final SocketChannel socket, final Registries registries, final long maxPendingBytes) {
+    SocketReader(final ViaPlayerConnection connection, final SocketChannel socket, final Registries registries, final long maxPendingBytes) {
+        this.connection = connection;
         this.socket = socket;
         this.registries = registries;
         this.creditLimit = (int) Math.min(maxPendingBytes, Integer.MAX_VALUE);
         this.credit = new Semaphore(creditLimit);
         this.buffer = NetworkBuffer.staticBuffer(ServerFlag.POOLED_BUFFER_SIZE, registries);
-    }
-
-    void attach(final ViaPlayerConnection connection) {
-        this.connection = connection;
     }
 
     void decryptWith(final Cipher cipher) {

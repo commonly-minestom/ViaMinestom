@@ -12,26 +12,24 @@ final class SocketWriter implements Runnable {
     private final SocketChannel socket;
     private final BufferPool pool;
     private final long maxPendingBytes;
+    private final Runnable closeRequest;
+    private final Runnable onStopped;
     private final AtomicLong pendingBytes = new AtomicLong();
     private final Mailbox<NetworkBuffer> outbox;
-    private ViaPlayerConnection connection;
 
-    SocketWriter(final SocketChannel socket, final BufferPool pool, final long maxPendingBytes) {
+    SocketWriter(final SocketChannel socket, final BufferPool pool, final long maxPendingBytes, final Runnable closeRequest, final Runnable onStopped) {
         this.socket = socket;
         this.pool = pool;
         this.maxPendingBytes = maxPendingBytes;
+        this.closeRequest = closeRequest;
+        this.onStopped = onStopped;
         this.outbox = new Mailbox<>(pool::release);
     }
 
-    void attach(final ViaPlayerConnection connection) {
-        this.connection = connection;
-    }
-
     void send(final NetworkBuffer wire) {
-        final long size = wire.readableBytes();
-        if (pendingBytes.addAndGet(size) > maxPendingBytes) {
+        if (pendingBytes.addAndGet(wire.readableBytes()) > maxPendingBytes) {
             pool.release(wire);
-            connection.requestClose();
+            closeRequest.run();
             return;
         }
         outbox.post(wire);
@@ -64,8 +62,8 @@ final class SocketWriter implements Runnable {
         } finally {
             outbox.terminate();
             closeSocket();
-            connection.requestClose();
-            connection.writerStopped();
+            closeRequest.run();
+            onStopped.run();
         }
     }
 

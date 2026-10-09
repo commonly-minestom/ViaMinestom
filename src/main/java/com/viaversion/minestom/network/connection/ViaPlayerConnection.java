@@ -1,8 +1,8 @@
 package com.viaversion.minestom.network.connection;
 
-import com.viaversion.minestom.network.NetworkSettings;
 import com.viaversion.minestom.network.bridge.BridgeChannel;
 import com.viaversion.minestom.network.bridge.BridgeHost;
+import com.viaversion.minestom.network.NetworkSettings;
 import com.viaversion.minestom.network.bridge.ByteBufs;
 import com.viaversion.minestom.network.codec.WireCodec;
 import com.viaversion.minestom.network.intercept.PacketInterceptor;
@@ -40,6 +40,7 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
     private static final ThreadFactory ACTORS = Thread.ofVirtual().name("Via-Actor-", 0).factory();
     private static final ThreadFactory READERS = Thread.ofVirtual().name("Via-Reader-", 0).factory();
     private static final ThreadFactory WRITERS = Thread.ofVirtual().name("Via-Writer-", 0).factory();
+    private static final Thread UNUSED = Thread.ofVirtual().unstarted(() -> { });
 
     private final SocketChannel socket;
     private final SocketAddress localAddress;
@@ -47,7 +48,9 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
     private final ConnectionActor actor;
     private final Thread actorThread;
     private final SocketReader reader;
+    private final Thread readerThread;
     private final SocketWriter writer;
+    private final Thread writerThread;
     private final Consumer<ViaPlayerConnection> onTerminated;
     private final BridgeChannel bridge;
     private final InterceptorChain interceptors;
@@ -65,26 +68,22 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
 
     private ViaPlayerConnection(final SocketChannel socket, final BufferPool pool, final NetworkSettings settings, final Consumer<ViaPlayerConnection> onTerminated) throws IOException {
         final Registries registries = MinecraftServer.getRegistries();
-        final ConnectionActor actor = new ConnectionActor();
-        final SocketReader reader = new SocketReader(socket, registries, settings.maxPendingReadBytes());
-        final SocketWriter writer = new SocketWriter(socket, pool, settings.maxPendingWriteBytes());
-        super(socket, socket.getRemoteAddress(), READERS.newThread(reader), WRITERS.newThread(writer));
+        super(socket, socket.getRemoteAddress(), UNUSED, UNUSED);
         this.socket = socket;
         this.localAddress = socket.getLocalAddress();
         this.registries = registries;
-        this.actor = actor;
+        this.actor = new ConnectionActor(this);
         this.actorThread = ACTORS.newThread(actor);
-        this.reader = reader;
-        this.writer = writer;
+        this.reader = new SocketReader(this, socket, registries, settings.maxPendingReadBytes());
+        this.readerThread = READERS.newThread(reader);
+        this.writer = new SocketWriter(socket, pool, settings.maxPendingWriteBytes(), this::requestClose, this::writerStopped);
+        this.writerThread = WRITERS.newThread(writer);
         this.onTerminated = onTerminated;
         this.bridge = new BridgeChannel(new Host(), actor, getRemoteAddress(), registries);
         this.interceptors = new InterceptorChain(PacketInterceptors.create(this));
         final PacketDispatcher dispatcher = new PacketDispatcher(this, MinecraftServer.getServer().packetParser());
         this.inbound = new InboundPipeline(this, interceptors, bridge.translator(), codec, dispatcher, registries);
         this.outbound = new OutboundPipeline(this, interceptors, bridge.translator(), codec, new WireBatch(pool, writer::send), pool);
-        actor.attach(this);
-        reader.attach(this);
-        writer.attach(this);
     }
 
     public static ViaPlayerConnection open(final SocketChannel socket, final NetworkSettings settings, final Consumer<ViaPlayerConnection> onTerminated) throws IOException {
@@ -97,8 +96,18 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
 
     public void start() {
         actorThread.start();
-        readThread().start();
-        writeThread().start();
+        readerThread.start();
+        writerThread.start();
+    }
+
+    @Override
+    public Thread readThread() {
+        return readerThread;
+    }
+
+    @Override
+    public Thread writeThread() {
+        return writerThread;
     }
 
     public UserConnection userConnection() {
