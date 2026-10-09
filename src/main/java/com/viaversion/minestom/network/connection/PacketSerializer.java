@@ -63,6 +63,10 @@ final class PacketSerializer {
         return NetworkBuffer.wrap(bytes, 0, bytes.length, registries);
     }
 
+    static NetworkBuffer wrap(final InboundFrame frame, final @Nullable Registries registries) {
+        return NetworkBuffer.wrap(frame.bytes(), frame.offset(), frame.offset() + frame.length(), registries);
+    }
+
     private static NetworkBuffer inflate(final NetworkBuffer frames, final long index, final long length, final int size) throws DataFormatException {
         final NetworkBuffer body = NetworkBuffer.wrap(new byte[size], 0, 0, frames.registries());
         final long produced = frames.decompress(index, length, body);

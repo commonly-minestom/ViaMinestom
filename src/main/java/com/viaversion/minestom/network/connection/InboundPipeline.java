@@ -31,7 +31,7 @@ final class InboundPipeline {
             return;
         }
         try {
-            final NetworkBuffer body = codec.decode(PacketSerializer.wrap(frame.bytes(), registries), ServerFlag.MAX_PACKET_SIZE);
+            final NetworkBuffer body = codec.decode(PacketSerializer.wrap(frame, registries), ServerFlag.MAX_PACKET_SIZE);
             fromClientStage(body);
         } catch (final DataFormatException | RuntimeException e) {
             MinecraftServer.getExceptionManager().handleException(e);

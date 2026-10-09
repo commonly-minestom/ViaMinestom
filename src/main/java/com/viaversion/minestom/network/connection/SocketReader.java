@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 final class SocketReader implements Runnable {
     private static final long CREDIT_POLL_MILLIS = 100;
+    private static final FrameSplitter.FrameSink MEASURE = (_, _, _) -> { };
 
     private final SocketChannel socket;
     private final Semaphore credit;
@@ -100,7 +101,14 @@ final class SocketReader implements Runnable {
 
     private void split() throws CorruptedFrameException {
         final int maxLength = PacketReading.maxPacketSize(connection.getClientState());
-        final long required = FrameSplitter.split(buffer, maxLength, this::frame);
+        final long start = buffer.readIndex();
+        final long required = FrameSplitter.split(buffer, maxLength, MEASURE);
+        final int complete = Math.toIntExact(buffer.readIndex() - start);
+        if (complete > 0) {
+            final byte[] chunk = new byte[complete];
+            buffer.copyTo(start, chunk, 0, complete);
+            FrameSplitter.split(NetworkBuffer.wrap(chunk, 0, complete, registries), maxLength, (_, index, length) -> frame(chunk, (int) index, length));
+        }
         buffer.compact();
         if (required > buffer.capacity()) {
             buffer.resize(required);
@@ -133,12 +141,9 @@ final class SocketReader implements Runnable {
         }
     }
 
-    private void frame(final NetworkBuffer source, final long index, final int length) {
-        if (!acquireCredit(length)) {
-            return;
+    private void frame(final byte[] chunk, final int offset, final int length) {
+        if (acquireCredit(length)) {
+            connection.frame(new InboundFrame(chunk, offset, length));
         }
-        final byte[] bytes = new byte[length];
-        source.copyTo(index, bytes, 0, length);
-        connection.frame(new InboundFrame(bytes));
     }
 }

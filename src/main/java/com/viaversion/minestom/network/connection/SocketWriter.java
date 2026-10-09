@@ -7,6 +7,8 @@ import net.minestom.server.MinecraftServer;
 import net.minestom.server.network.NetworkBuffer;
 
 final class SocketWriter implements Runnable {
+    private static final int SMALL_WIRE_BYTES = 4096;
+
     private final SocketChannel socket;
     private final BufferPool pool;
     private final long maxPendingBytes;
@@ -46,13 +48,7 @@ final class SocketWriter implements Runnable {
             while (true) {
                 final NetworkBuffer wire = outbox.poll();
                 if (wire != null) {
-                    final long size = wire.readableBytes();
-                    try {
-                        writeFully(wire);
-                    } finally {
-                        pendingBytes.addAndGet(-size);
-                        pool.release(wire);
-                    }
+                    transmit(wire);
                     continue;
                 }
                 if (!outbox.await()) {
@@ -70,6 +66,67 @@ final class SocketWriter implements Runnable {
             closeSocket();
             connection.requestClose();
             connection.writerStopped();
+        }
+    }
+
+    private void transmit(final NetworkBuffer head) throws IOException {
+        final NetworkBuffer first = isSmall(head) ? outbox.poll() : null;
+        if (first == null) {
+            writeAndRelease(head);
+            return;
+        }
+        final NetworkBuffer staging = pool.acquire();
+        NetworkBuffer held = first;
+        try {
+            stage(staging, head);
+            while (held != null) {
+                final NetworkBuffer next = held;
+                if (!isSmall(next) || next.readableBytes() > staging.writableBytes()) {
+                    held = null;
+                    try {
+                        writeFully(staging);
+                    } catch (final IOException | RuntimeException e) {
+                        pool.release(next);
+                        throw e;
+                    }
+                    writeAndRelease(next);
+                    return;
+                }
+                held = null;
+                stage(staging, next);
+                held = outbox.poll();
+            }
+            writeFully(staging);
+        } finally {
+            if (held != null) {
+                pool.release(held);
+            }
+            pool.release(staging);
+        }
+    }
+
+    private static boolean isSmall(final NetworkBuffer wire) {
+        return wire.readableBytes() <= SMALL_WIRE_BYTES;
+    }
+
+    private void stage(final NetworkBuffer staging, final NetworkBuffer wire) {
+        final long size = wire.readableBytes();
+        try {
+            NetworkBuffer.copy(wire, wire.readIndex(), staging, staging.writeIndex(), size);
+            staging.advanceWrite(size);
+        } finally {
+            pendingBytes.addAndGet(-size);
+            pool.release(wire);
+        }
+    }
+
+    private void writeAndRelease(final NetworkBuffer wire) throws IOException {
+        final long size = wire.readableBytes();
+        try {
+            writeFully(wire);
+        } finally {
+            pendingBytes.addAndGet(-size);
+            pool.release(wire);
         }
     }
 

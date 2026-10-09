@@ -231,7 +231,7 @@ public final class ViaPlayerConnection extends PlayerSocketConnection {
     }
 
     void frameProcessed(final InboundFrame frame) {
-        reader.release(frame.bytes().length);
+        reader.release(frame.length());
     }
 
     void enforceDeadlines(final long now, final Deadlines deadlines) {
